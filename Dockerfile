@@ -1,4 +1,4 @@
-# Ubuntu 22.04 + SSH + playit.gg (port tetap)
+# Ubuntu 22.04 + SSH + playit (offline bundle)
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y \
       htop git python3 python3-pip unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. playit binary (latest)
-RUN wget -q https://playit.gg/downloads/playit-linux-x86_64.tar.gz -O /playit.tgz && \
-    cd / && tar -xvf playit.tgz && rm playit.tgz && chmod +x playit
+# 2. copy playit binary (sudah di-download sebelumnya)
+COPY playit-linux-x86_64.tar.gz /playit.tgz
+RUN cd / && tar -xvf playit.tgz && rm playit.tgz && chmod +x playit
 
 # 3. SSH setup
 RUN mkdir -p /run/sshd && \
