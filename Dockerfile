@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
       htop git python3 python3-pip unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. playit.gg binary
-RUN wget -q https://playit.gg/downloads/playit-linux_0.9.3_x86_64.tar.gz -O /playit.tgz && \
+# 2. playit binary (latest)
+RUN wget -q https://playit.gg/downloads/playit-linux-x86_64.tar.gz -O /playit.tgz && \
     cd / && tar -xvf playit.tgz && rm playit.tgz && chmod +x playit
 
 # 3. SSH setup
@@ -20,11 +20,9 @@ RUN mkdir -p /run/sshd && \
     echo 'root:kelvin123' | chpasswd && \
     ssh-keygen -A
 
-# 4. startup script (jalankan playit + sshd)
+# 4. startup script
 RUN printf '#!/bin/bash\n\
-# jalankan playit.gg (akan otomatis mem-forward port 22 ke port tetap)\n\
 /playit &\n\
-# jalankan SSH server\n\
 /usr/sbin/sshd -D\n' > /start.sh && chmod +x /start.sh
 
 EXPOSE 22
