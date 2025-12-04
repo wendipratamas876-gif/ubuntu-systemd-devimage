@@ -1,46 +1,31 @@
-FROM ubuntu:rolling
+# Ubuntu 22.04 + SSH + playit.gg (port tetap)
+FROM ubuntu:22.04
 
-ARG USERNAME=user
-ARG USER_UID=1000
-ARG USER_GID=1000
+ENV DEBIAN_FRONTEND=noninteractive
 
-ENV container=docker \
-    LC_ALL=C \
-    DEBIAN_FRONTEND=noninteractive
+# 1. base + ssh + tools
+RUN apt-get update && apt-get install -y \
+      openssh-server nano vim curl wget net-tools dnsutils iputils-ping \
+      htop git python3 python3-pip unzip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && \
-    apt-get install -y \
-        openssh-server nano net-tools bash-completion dnsutils sudo \
-        systemd systemd-sysv git python3 python3-pip locales curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    locale-gen en_US.UTF-8
+# 2. playit.gg binary
+RUN wget -q https://playit.gg/downloads/playit-linux_0.9.3_x86_64.tar.gz -O /playit.tgz && \
+    cd / && tar -xvf playit.tgz && rm playit.tgz && chmod +x playit
 
-RUN cd /lib/systemd/system/sysinit.target.wants && \
-    ls | grep -v systemd-tmpfiles-setup | xargs rm -f && \
-    rm -f \
-        /lib/systemd/system/multi-user.target.wants/* \
-        /etc/systemd/system/*.wants/* \
-        /lib/systemd/system/local-fs.target.wants/* \
-        /lib/systemd/system/sockets.target.wants/*udev* \
-        /lib/systemd/system/sockets.target.wants/*initctl* \
-        /lib/systemd/system/basic.target.wants/* \
-        /lib/systemd/system/anaconda.target.wants/* \
-        /lib/systemd/system/plymouth* \
-        /lib/systemd/system/systemd-update-utmp*
+# 3. SSH setup
+RUN mkdir -p /run/sshd && \
+    sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    echo 'root:kelvin123' | chpasswd && \
+    ssh-keygen -A
 
-RUN curl -fsSL https://get.docker.com | bash
+# 4. startup script (jalankan playit + sshd)
+RUN printf '#!/bin/bash\n\
+# jalankan playit.gg (akan otomatis mem-forward port 22 ke port tetap)\n\
+/playit &\n\
+# jalankan SSH server\n\
+/usr/sbin/sshd -D\n' > /start.sh && chmod +x /start.sh
 
-RUN deluser ubuntu 2>/dev/null || true && \
-    useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME && \
-    echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME && \
-    chmod 0440 /etc/sudoers.d/$USERNAME && \
-    usermod -aG docker $USERNAME && \
-    echo "$USERNAME:ruse" | chpasswd
-
-RUN systemctl enable ssh docker && \
-    systemctl set-default multi-user.target && \
-    ln -sf /lib/systemd/system/systemd-user-sessions.service \
-       /etc/systemd/system/multi-user.target.wants/
-
-CMD ["/lib/systemd/systemd"]
+EXPOSE 22
+CMD ["/start.sh"]
